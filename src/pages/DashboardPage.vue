@@ -15,122 +15,210 @@
       <!-- Sidebar -->
       <aside class="sidebar">
         <div class="sidebar-menu">
-          <button class="menu-item active">📊 Dashboard</button>
-          <button class="menu-item">📝 Meine Tasks</button>
-          <button class="menu-item">👥 Projekte</button>
-          <button class="menu-item">⚙️ Einstellungen</button>
+          <button class="menu-item" :class="{ active: currentView === 'dashboard' }" @click="currentView = 'dashboard'">📊 Dashboard</button>
+          <button class="menu-item" :class="{ active: currentView === 'tasks' }" @click="currentView = 'tasks'">📝 Meine Tasks</button>
+          <button class="menu-item" :class="{ active: currentView === 'projects' }" @click="currentView = 'projects'">👥 Projekte</button>
+          <button class="menu-item" :class="{ active: currentView === 'settings' }" @click="currentView = 'settings'">⚙️ Einstellungen</button>
         </div>
       </aside>
 
       <!-- Main Content -->
       <main class="main-content">
-        <div class="content-header">
-          <h1>Willkommen zurück!</h1>
-          <p>Verwalte deine Aufgaben und Projekte</p>
-        </div>
 
-        <!-- Quick Stats -->
-        <section class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon">📌</div>
-            <div class="stat-info">
-              <p class="stat-label">Gesamt Tasks</p>
-              <p class="stat-value">{{ totalTasks }}</p>
-            </div>
+        <!-- Dashboard View -->
+        <template v-if="currentView === 'dashboard'">
+          <div class="content-header">
+            <h1>Willkommen zurück!</h1>
+            <p>Verwalte deine Aufgaben und Projekte</p>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon">✅</div>
-            <div class="stat-info">
-              <p class="stat-label">Abgeschlossen</p>
-              <p class="stat-value">{{ completedTasks }}</p>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">⏳</div>
-            <div class="stat-info">
-              <p class="stat-label">Ausstehend</p>
-              <p class="stat-value">{{ pendingTasks.length }}</p>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🚀</div>
-            <div class="stat-info">
-              <p class="stat-label">Aktive Projekte</p>
-              <p class="stat-value">{{ projects.length }}</p>
-            </div>
-          </div>
-        </section>
 
-        <!-- Anstehende Tasks -->
-        <section class="dashboard-section">
-          <div class="section-header">
-            <h2>Anstehende Tasks</h2>
+          <section class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">📌</div>
+              <div class="stat-info">
+                <p class="stat-label">Gesamt Tasks</p>
+                <p class="stat-value">{{ totalTasks }}</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">✅</div>
+              <div class="stat-info">
+                <p class="stat-label">Abgeschlossen</p>
+                <p class="stat-value">{{ completedTasks }}</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">⏳</div>
+              <div class="stat-info">
+                <p class="stat-label">Ausstehend</p>
+                <p class="stat-value">{{ pendingTasks.length }}</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🚀</div>
+              <div class="stat-info">
+                <p class="stat-label">Aktive Projekte</p>
+                <p class="stat-value">{{ projects.length }}</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="dashboard-section">
+            <div class="section-header">
+              <h2>Anstehende Tasks</h2>
+              <button class="btn btn-primary" @click="openTaskModal(null)">+ Neue Task</button>
+            </div>
+            <div v-if="pendingTasks.length === 0" class="tasks-placeholder">
+              <p>📭</p>
+              <p class="text-muted">Keine offenen Tasks vorhanden</p>
+            </div>
+            <div v-else class="task-list">
+              <div v-for="task in pendingTasks" :key="task.id" class="task-row">
+                <input type="checkbox" :checked="task.status === 'done'" @change="toggleTask(task)" class="task-checkbox" />
+                <span class="task-title" :class="{ done: task.status === 'done' }">{{ task.title }}</span>
+                <span class="project-badge" :style="{ background: task.projectColor }">{{ task.projectName }}</span>
+                <span class="priority-badge" :class="task.priority">{{ priorityLabel(task.priority) }}</span>
+                <span v-if="task.due_date" class="due-date">📅 {{ formatDate(task.due_date) }}</span>
+                <button class="btn-icon" @click="deleteTask(task.id, task.project_id)" title="Löschen">✕</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="dashboard-section">
+            <div class="section-header">
+              <h2>Deine Projekte</h2>
+              <button class="btn btn-primary" @click="openProjectModal">+ Neues Projekt</button>
+            </div>
+            <div v-if="projects.length === 0" class="projects-placeholder">
+              <p>📁</p>
+              <p class="text-muted">Erstelle ein neues Projekt, um zu beginnen</p>
+            </div>
+            <div v-else class="projects-grid">
+              <div v-for="project in projects" :key="project.id" class="project-card">
+                <div class="project-card-header">
+                  <div class="project-color-dot" :style="{ background: project.color }"></div>
+                  <h3 class="project-name">{{ project.name }}</h3>
+                  <span class="task-count-badge">{{ project.tasks.length }} Tasks</span>
+                  <button class="btn-icon delete-btn" @click="deleteProject(project.id)" title="Projekt löschen">✕</button>
+                </div>
+                <p v-if="project.description" class="project-description">{{ project.description }}</p>
+                <div class="project-tasks">
+                  <div v-if="project.tasks.length === 0" class="no-tasks-hint">Noch keine Tasks — füge die erste hinzu!</div>
+                  <div v-for="task in project.tasks" :key="task.id" class="task-row task-row--compact">
+                    <input type="checkbox" :checked="task.status === 'done'" @change="toggleTask(task)" class="task-checkbox" />
+                    <span class="task-title" :class="{ done: task.status === 'done' }">{{ task.title }}</span>
+                    <span class="priority-badge" :class="task.priority">{{ priorityLabel(task.priority) }}</span>
+                    <button class="btn-icon" @click="deleteTask(task.id, project.id)" title="Löschen">✕</button>
+                  </div>
+                </div>
+                <button class="btn-add-task" @click="openTaskModal(project.id)">+ Task hinzufügen</button>
+              </div>
+            </div>
+          </section>
+        </template>
+
+        <!-- Meine Tasks View -->
+        <template v-else-if="currentView === 'tasks'">
+          <div class="content-header">
+            <h1>Meine Tasks</h1>
+            <p>Alle deine Aufgaben auf einen Blick</p>
+          </div>
+
+          <div class="filter-bar">
+            <select v-model="taskFilter.project_id" class="filter-select">
+              <option value="">Alle Projekte</option>
+              <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+            <select v-model="taskFilter.status" class="filter-select">
+              <option value="">Alle Status</option>
+              <option value="todo">Offen</option>
+              <option value="in_progress">In Bearbeitung</option>
+              <option value="done">Abgeschlossen</option>
+            </select>
+            <select v-model="taskFilter.priority" class="filter-select">
+              <option value="">Alle Prioritäten</option>
+              <option value="low">Niedrig</option>
+              <option value="medium">Mittel</option>
+              <option value="high">Hoch</option>
+            </select>
             <button class="btn btn-primary" @click="openTaskModal(null)">+ Neue Task</button>
           </div>
-          <div v-if="pendingTasks.length === 0" class="tasks-placeholder">
-            <p>📭</p>
-            <p class="text-muted">Keine offenen Tasks vorhanden</p>
-          </div>
-          <div v-else class="task-list">
-            <div v-for="task in pendingTasks" :key="task.id" class="task-row">
-              <input
-                type="checkbox"
-                :checked="task.status === 'done'"
-                @change="toggleTask(task)"
-                class="task-checkbox"
-              />
-              <span class="task-title" :class="{ done: task.status === 'done' }">{{ task.title }}</span>
-              <span class="project-badge" :style="{ background: task.projectColor }">{{ task.projectName }}</span>
-              <span class="priority-badge" :class="task.priority">
-                {{ priorityLabel(task.priority) }}
-              </span>
-              <span v-if="task.due_date" class="due-date">📅 {{ formatDate(task.due_date) }}</span>
-              <button class="btn-icon" @click="deleteTask(task.id, task.project_id)" title="Löschen">✕</button>
+
+          <section class="dashboard-section">
+            <div v-if="filteredAllTasks.length === 0" class="tasks-placeholder">
+              <p>📭</p>
+              <p class="text-muted">Keine Tasks gefunden</p>
             </div>
-          </div>
-        </section>
-
-        <!-- Projekte -->
-        <section class="dashboard-section">
-          <div class="section-header">
-            <h2>Deine Projekte</h2>
-            <button class="btn btn-primary" @click="openProjectModal">+ Neues Projekt</button>
-          </div>
-          <div v-if="projects.length === 0" class="projects-placeholder">
-            <p>📁</p>
-            <p class="text-muted">Erstelle ein neues Projekt, um zu beginnen</p>
-          </div>
-          <div v-else class="projects-grid">
-            <div v-for="project in projects" :key="project.id" class="project-card">
-              <div class="project-card-header">
-                <div class="project-color-dot" :style="{ background: project.color }"></div>
-                <h3 class="project-name">{{ project.name }}</h3>
-                <span class="task-count-badge">{{ project.tasks.length }} Tasks</span>
-                <button class="btn-icon delete-btn" @click="deleteProject(project.id)" title="Projekt löschen">✕</button>
+            <div v-else class="task-list">
+              <div v-for="task in filteredAllTasks" :key="task.id" class="task-row">
+                <input type="checkbox" :checked="task.status === 'done'" @change="toggleTask(task)" class="task-checkbox" />
+                <span class="task-title" :class="{ done: task.status === 'done' }">{{ task.title }}</span>
+                <span class="project-badge" :style="{ background: task.projectColor }">{{ task.projectName }}</span>
+                <span class="priority-badge" :class="task.priority">{{ priorityLabel(task.priority) }}</span>
+                <span v-if="task.due_date" class="due-date">📅 {{ formatDate(task.due_date) }}</span>
+                <span class="status-badge" :class="task.status">{{ statusLabel(task.status) }}</span>
+                <button class="btn-icon" @click="deleteTask(task.id, task.project_id)" title="Löschen">✕</button>
               </div>
-              <p v-if="project.description" class="project-description">{{ project.description }}</p>
-
-              <div class="project-tasks">
-                <div v-if="project.tasks.length === 0" class="no-tasks-hint">
-                  Noch keine Tasks — füge die erste hinzu!
-                </div>
-                <div v-for="task in project.tasks" :key="task.id" class="task-row task-row--compact">
-                  <input
-                    type="checkbox"
-                    :checked="task.status === 'done'"
-                    @change="toggleTask(task)"
-                    class="task-checkbox"
-                  />
-                  <span class="task-title" :class="{ done: task.status === 'done' }">{{ task.title }}</span>
-                  <span class="priority-badge" :class="task.priority">{{ priorityLabel(task.priority) }}</span>
-                  <button class="btn-icon" @click="deleteTask(task.id, project.id)" title="Löschen">✕</button>
-                </div>
-              </div>
-
-              <button class="btn-add-task" @click="openTaskModal(project.id)">+ Task hinzufügen</button>
             </div>
+          </section>
+        </template>
+
+        <!-- Projekte View -->
+        <template v-else-if="currentView === 'projects'">
+          <div class="content-header">
+            <h1>Projekte</h1>
+            <p>Alle deine Projekte und ihre Aufgaben</p>
           </div>
-        </section>
+
+          <section class="dashboard-section">
+            <div class="section-header">
+              <h2>Deine Projekte</h2>
+              <button class="btn btn-primary" @click="openProjectModal">+ Neues Projekt</button>
+            </div>
+            <div v-if="projects.length === 0" class="projects-placeholder">
+              <p>📁</p>
+              <p class="text-muted">Erstelle ein neues Projekt, um zu beginnen</p>
+            </div>
+            <div v-else class="projects-grid">
+              <div v-for="project in projects" :key="project.id" class="project-card">
+                <div class="project-card-header">
+                  <div class="project-color-dot" :style="{ background: project.color }"></div>
+                  <h3 class="project-name">{{ project.name }}</h3>
+                  <span class="task-count-badge">{{ project.tasks.length }} Tasks</span>
+                  <button class="btn-icon delete-btn" @click="deleteProject(project.id)" title="Projekt löschen">✕</button>
+                </div>
+                <p v-if="project.description" class="project-description">{{ project.description }}</p>
+                <div class="project-tasks">
+                  <div v-if="project.tasks.length === 0" class="no-tasks-hint">Noch keine Tasks — füge die erste hinzu!</div>
+                  <div v-for="task in project.tasks" :key="task.id" class="task-row task-row--compact">
+                    <input type="checkbox" :checked="task.status === 'done'" @change="toggleTask(task)" class="task-checkbox" />
+                    <span class="task-title" :class="{ done: task.status === 'done' }">{{ task.title }}</span>
+                    <span class="priority-badge" :class="task.priority">{{ priorityLabel(task.priority) }}</span>
+                    <button class="btn-icon" @click="deleteTask(task.id, project.id)" title="Löschen">✕</button>
+                  </div>
+                </div>
+                <button class="btn-add-task" @click="openTaskModal(project.id)">+ Task hinzufügen</button>
+              </div>
+            </div>
+          </section>
+        </template>
+
+        <!-- Einstellungen View -->
+        <template v-else-if="currentView === 'settings'">
+          <div class="content-header">
+            <h1>Einstellungen</h1>
+            <p>Deine Kontoeinstellungen</p>
+          </div>
+          <section class="dashboard-section">
+            <div class="settings-info">
+              <div class="settings-row">
+                <span class="settings-label">Name</span>
+                <span class="settings-value">{{ userName }}</span>
+              </div>
+            </div>
+          </section>
+        </template>
+
       </main>
     </div>
 
@@ -250,6 +338,8 @@ export default defineComponent({
   data() {
     return {
       userName: '',
+      currentView: 'dashboard',
+      taskFilter: { project_id: '' as number | '', status: '', priority: '' },
       projects: [] as ProjectWithTasks[],
       showProjectModal: false,
       showTaskModal: false,
@@ -273,6 +363,19 @@ export default defineComponent({
           .filter(t => t.status !== 'done')
           .map(t => ({ ...t, projectName: p.name, projectColor: p.color }))
       )
+    },
+    allTasksFlat(): PendingTask[] {
+      return this.projects.flatMap(p =>
+        p.tasks.map(t => ({ ...t, projectName: p.name, projectColor: p.color }))
+      )
+    },
+    filteredAllTasks(): PendingTask[] {
+      return this.allTasksFlat.filter(t => {
+        if (this.taskFilter.project_id !== '' && t.project_id !== Number(this.taskFilter.project_id)) return false
+        if (this.taskFilter.status && t.status !== this.taskFilter.status) return false
+        if (this.taskFilter.priority && t.priority !== this.taskFilter.priority) return false
+        return true
+      })
     }
   },
   async mounted() {
@@ -391,7 +494,10 @@ export default defineComponent({
       this.$router.push('/')
     },
     priorityLabel(priority: string): string {
-      return { low: 'Niedrig', medium: 'Mittel', high: 'Hoch' }[priority] || priority
+      return ({ low: 'Niedrig', medium: 'Mittel', high: 'Hoch' } as Record<string, string>)[priority] || priority
+    },
+    statusLabel(status: string): string {
+      return ({ todo: 'Offen', in_progress: 'In Bearbeitung', done: 'Abgeschlossen' } as Record<string, string>)[status] || status
     },
     formatDate(dateStr: string): string {
       return new Date(dateStr).toLocaleDateString('de-AT')
@@ -773,6 +879,56 @@ export default defineComponent({
   gap: 0.75rem;
   margin-top: 0.5rem;
 }
+
+/* Filter Bar */
+.filter-bar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.filter-select {
+  padding: 0.6rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #333;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.filter-select:focus { outline: none; border-color: #667eea; }
+
+/* Status Badge */
+.status-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-badge.todo { background: #e3f2fd; color: #1565c0; }
+.status-badge.in_progress { background: #fff8e1; color: #f57f17; }
+.status-badge.done { background: #e8f5e9; color: #388e3c; }
+
+/* Settings */
+.settings-info { display: flex; flex-direction: column; gap: 1rem; }
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.settings-label { font-weight: 600; color: #555; width: 120px; }
+.settings-value { color: #333; }
 
 /* Responsive */
 @media (max-width: 768px) {
