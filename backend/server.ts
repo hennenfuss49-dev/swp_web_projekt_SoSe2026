@@ -2,6 +2,8 @@ import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth'
+import projectRoutes from './routes/projects'
+import taskRoutes from './routes/tasks'
 
 dotenv.config()
 
@@ -15,6 +17,8 @@ app.use(express.urlencoded({ extended: true }))
 
 // Routes
 app.use('/api/auth', authRoutes)
+app.use('/api/projects', projectRoutes)
+app.use('/api/tasks', taskRoutes)
 
 // Health Check
 app.get('/api/health', (req: Request, res: Response) => {
